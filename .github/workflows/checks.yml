@@ -1,0 +1,222 @@
+# Automatic checks on every push to main and to Claude's working branches.
+#  1. Logic tests: the cleanup rules, the silence clock and the hand-off
+#     between the app and the keyboard, on Linux (cheap and fast).
+#  2. App build and walk-through: builds the iPhone app and screenshots every
+#     screen and keyboard state on one simulator per iPhone screen size, plus
+#     the iPhone Duo (the Duo run also draws the open Duo), one Mac each.
+#  3. Publish: gathers every phone's screenshots onto the screenshots branch
+#     (from main), or screenshots-<branch> (from a working branch, to review
+#     before merging).
+name: Checks
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  logic:
+    name: Logic tests
+    runs-on: ubuntu-latest
+    container: swift:6.1
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run logic tests
+        run: swift test 2>&1 | tee logic.log; exit ${PIPESTATUS[0]}
+        shell: bash
+      - name: Report failures
+        if: failure()
+        shell: bash
+        run: |
+          grep -E "error:|failed" logic.log | head -30 | while IFS= read -r line; do echo "::error::${line//%/%25}"; done
+
+  app:
+    name: App on ${{ matrix.size }}
+    needs: logic
+    runs-on: xcode-27
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      # One phone per screen size. Phones that share a size (in points) look
+      # the same, so one stands in for the rest.
+      matrix:
+        include:
+          - size: 390 x 844 (16e, 17e)
+            types: iPhone-17e iPhone-16e
+          - size: 393 x 852 (15, 15 Pro, 16)
+            types: iPhone-15 iPhone-16 iPhone-15-Pro
+          - size: 402 x 874 (16 Pro, 17, 17 Pro, 18 Pro)
+            types: iPhone-18-Pro iPhone-17-Pro iPhone-17
+          - size: 420 x 912 (Air)
+            types: iPhone-Air
+          - size: 430 x 932 (15 Plus, 15 Pro Max, 16 Plus)
+            types: iPhone-15-Plus iPhone-16-Plus iPhone-15-Pro-Max
+          - size: 440 x 956 (16 Pro Max, 17 Pro Max, 18 Pro Max)
+            types: iPhone-18-Pro-Max iPhone-17-Pro-Max iPhone-16-Pro-Max
+          - size: iPhone Duo (folded and open)
+            types: iPhone-Duo
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick and start the simulator
+        # Uses a simulator of the first type the Mac has, making one if needed,
+        # and boots it first (booting while the tests start can time them out).
+        id: pick
+        env:
+          TYPES: ${{ matrix.types }}
+        run: |
+          echo "::notice title=Tools::$(xcodebuild -version | tr '\n' ' ')"
+          python3 - <<'PYPICK'
+          import json, os, subprocess
+          listing = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "-j"]))
+          prefix = "com.apple.CoreSimulator.SimDeviceType."
+          runtimes = sorted((r for r in listing["runtimes"]
+                             if r.get("isAvailable") and r["identifier"].split(".")[-1].startswith("iOS-")),
+                            key=lambda r: [int(x) for x in r["version"].split(".")])
+          udid = name = None
+          for t in os.environ["TYPES"].split():
+              # A simulator of this type that's already there (newest runtime wins).
+              for runtime in sorted(listing["devices"]):
+                  for d in listing["devices"][runtime]:
+                      if d.get("isAvailable") and d.get("deviceTypeIdentifier") == prefix + t:
+                          udid, name = d["udid"], d["name"]
+              if udid: break
+              # Otherwise make one on the newest iOS that supports it.
+              for r in reversed(runtimes):
+                  if any(s.get("identifier") == prefix + t for s in r.get("supportedDeviceTypes", [])):
+                      made = subprocess.run(["xcrun", "simctl", "create", t.replace("-", " "), prefix + t, r["identifier"]],
+                                            capture_output=True, text=True)
+                      if made.returncode == 0:
+                          udid, name = made.stdout.strip(), t.replace("-", " ")
+                          print(f"Made {name} on {r['name']}")
+                          break
+              if udid: break
+              print(f"No {t} simulator, trying the next")
+          if not udid:
+              raise SystemExit(f"::error::No simulator for {os.environ['TYPES']}")
+          subprocess.run(["xcrun", "simctl", "boot", udid])
+          subprocess.run(["xcrun", "simctl", "bootstatus", udid, "-b"], check=True, timeout=900)
+          print(f"::notice title=Simulator::{name} ({udid})")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"udid={udid}\nname={name}\n")
+          PYPICK
+
+      - name: Build and walk through the app
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project Utter.xcodeproj \
+            -scheme Utter \
+            -destination "platform=iOS Simulator,id=${{ steps.pick.outputs.udid }}" \
+            -resultBundlePath build/Checks.xcresult \
+            -retry-tests-on-failure -test-iterations 2 \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Report build errors and test failures
+        if: failure()
+        run: |
+          # Run logs can't always be opened, so surface the first errors as annotations.
+          [ -d build/Checks.xcresult ] || exit 0
+          xcrun xcresulttool get build-results --path build/Checks.xcresult > build/build-results.json || true
+          xcrun xcresulttool get test-results summary --path build/Checks.xcresult > build/test-summary.json || true
+          python3 - <<'PY'
+          import json
+          def load(p):
+              try: return json.load(open(p))
+              except Exception: return {}
+          b = load("build/build-results.json")
+          for e in (b.get("errors") or [])[:15]:
+              where = e.get("sourceURL", "").split("#")[0].split("/")[-1]
+              print(f"::error title=Build error {where}::{e.get('message', '')}".replace("\n", " "))
+          t = load("build/test-summary.json")
+          for f in (t.get("testFailures") or [])[:15]:
+              print(f"::error title=Test failed {f.get('testName', '')}::{f.get('targetName', '')} {f.get('failureText', '')}".replace("\n", " "))
+          PY
+
+      - name: Collect screenshots
+        if: always()
+        run: |
+          mkdir -p screenshots
+          if [ -d build/Checks.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/Checks.xcresult --output-path screenshots || true
+          fi
+          ls -la screenshots
+
+      - name: Name and turn the screenshots
+        if: always()
+        run: |
+          shopt -s nullglob
+          mkdir -p publish
+          [ -f screenshots/manifest.json ] || exit 0
+          # Name each picture after its simulator and step, e.g. "iPhone Duo - 30-keyboard-ready.png"
+          python3 - <<'PYNAME'
+          import json, shutil
+          for test in json.load(open("screenshots/manifest.json")):
+              for a in test.get("attachments", []):
+                  try:
+                      if not a["exportedFileName"].lower().endswith(".png") or any(w in a["suggestedHumanReadableName"] for w in ("Screen Recording", "Synthesized Event", "Debug description", "UI Snapshot")):
+                          continue
+                      step = a["suggestedHumanReadableName"].split("_0_")[0]
+                      step = "".join(c for c in step if c not in '"<>|*?:\\/\r\n')
+                      shutil.copy(f"screenshots/{a['exportedFileName']}", f"publish/{a.get('deviceName', 'iPhone')} - {step}.png")
+                  except Exception as error:
+                      print(f"::warning title=Screenshot skipped::{error}")
+          PYNAME
+          # The open Duo is drawn shrunk in the middle of the folded screen; cut
+          # away the black above and below (the open Duo is 951 by 669 points).
+          for f in publish/*open-duo*.png; do
+            w=$(sips -g pixelWidth "$f" | awk '/pixelWidth/ {print $2}')
+            h=$(( w * 669 / 951 + 2 ))
+            sips -c "$h" "$w" "$f" >/dev/null || echo "::warning title=Not cropped::$f"
+          done
+          files=(publish/*.png)
+          echo "::notice title=Screenshots::${#files[@]} exported on ${{ matrix.size }}"
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ strategy.job-index }}
+          path: publish
+          retention-days: 7
+          if-no-files-found: ignore
+
+  publish:
+    name: Publish screenshots
+    needs: app
+    if: always() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # only to publish screenshots to the screenshots branch
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: screenshots-*
+          path: publish
+          merge-multiple: true
+
+      - name: Publish screenshots to the screenshots branch
+        run: |
+          shopt -s nullglob
+          files=(publish/*.png)
+          echo "::notice title=Screenshots::${#files[@]} published"
+          [ ${#files[@]} -eq 0 ] && exit 0
+          cd publish
+          target=screenshots
+          if [ "$GITHUB_REF_NAME" != "main" ]; then target="screenshots-${GITHUB_REF_NAME//\//-}"; fi
+          git init -q -b "$target"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Screenshots from ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "$target"
+          echo "::notice title=Screenshots::published to $target"
