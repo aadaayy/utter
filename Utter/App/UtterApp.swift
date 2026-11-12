@@ -83,7 +83,11 @@ struct ScreenPreview<Content: View>: View {
     var body: some View {
         GeometryReader { geometry in
             let scale = min(geometry.size.width / screen.width, geometry.size.height / screen.height)
+            // The real screen's side strip (on the folded Duo) doesn't exist
+            // on the open Duo: keep only a status bar's worth at the top.
             content
+                .safeAreaPadding(.top, 24)
+                .ignoresSafeArea()
                 .frame(width: screen.width, height: screen.height)
                 .clipped()
                 .scaleEffect(scale)
