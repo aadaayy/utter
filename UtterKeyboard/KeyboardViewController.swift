@@ -212,7 +212,7 @@ final class KeyboardViewController: UIInputViewController {
         let selector = NSSelectorFromString("openURL:options:completionHandler:")
         while let current = responder {
             if current.isKind(of: UIApplication.self), current.responds(to: selector),
-               let method = class_getInstanceMethod(type(of: current), selector) {
+               let method = class_getInstanceMethod(Swift.type(of: current), selector) {
                 typealias Open = @convention(c) (AnyObject, Selector, NSURL, NSDictionary, AnyObject?) -> Void
                 let open = unsafeBitCast(method_getImplementation(method), to: Open.self)
                 open(current, selector, url as NSURL, NSDictionary(), nil)
