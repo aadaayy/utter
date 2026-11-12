@@ -138,7 +138,7 @@ final class WalkthroughUITests: XCTestCase {
                 sleep(1)
                 capture(shot)
                 if !dark && state == "spanish" {
-                    XCTAssertTrue(app.buttons["language-chip"].label.contains("ES") || app.buttons["language-chip"].label.contains("Español"),
+                    XCTAssertTrue(app.buttons["language-chip"].label.lowercased().contains("español"),
                                   "The language chip should say Spanish: \(app.buttons["language-chip"].label)")
                 }
                 if !dark && state == "typed" {

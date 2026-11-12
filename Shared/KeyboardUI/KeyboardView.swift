@@ -96,7 +96,8 @@ public struct KeyboardView<Globe: View>: View {
 
             if model.canUndoCleanup {
                 Button(action: model.onUndoCleanup) {
-                    Label(model.showingRaw ? "Cleaned" : "Raw words",
+                    Label(model.showingRaw ? (model.language == .spanish ? "Limpio" : "Cleaned")
+                                           : (model.language == .spanish ? "Sin limpiar" : "Raw words"),
                           systemImage: model.showingRaw ? "sparkles" : "arrow.uturn.backward")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(KeyboardTheme.text(scheme))
@@ -194,28 +195,40 @@ struct MicButton: View {
     @ObservedObject var model: KeyboardModel
     let size: CGFloat
 
+    private var live: Bool { model.phase == .listening }
+    private var starting: Bool { model.phase == .starting }
+    private var blocked: Bool { model.phase == .needsFullAccess }
+
     var body: some View {
         Button(action: model.onMic) {
             ZStack {
-                if model.isListening {
+                if live {
                     Circle()
                         .fill(KeyboardTheme.live.opacity(0.22))
                         .frame(width: size * (1.12 + 0.26 * model.level), height: size * (1.12 + 0.26 * model.level))
                         .animation(.easeOut(duration: 0.12), value: model.level)
                 }
                 Circle()
-                    .fill(model.isListening ? KeyboardTheme.live : KeyboardTheme.ready)
+                    .fill(live ? KeyboardTheme.live : (blocked ? Color.gray : KeyboardTheme.ready))
                     .frame(width: size, height: size)
                     .shadow(color: .black.opacity(0.18), radius: 6, y: 3)
-                Image(systemName: model.isListening ? "stop.fill" : "mic.fill")
-                    .font(.system(size: size * 0.36, weight: .semibold))
-                    .foregroundStyle(.white)
+                if starting {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(.white)
+                        .scaleEffect(size / 50)
+                } else {
+                    Image(systemName: live ? "stop.fill" : (blocked ? "mic.slash.fill" : "mic.fill"))
+                        .font(.system(size: size * 0.36, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
             }
             .frame(width: size * 1.4, height: size * 1.4)
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(model.isListening ? "Stop listening" : "Start dictation")
+        .accessibilityLabel(live ? (model.language == .spanish ? "Parar" : "Stop listening")
+                            : (model.language == .spanish ? "Dictar" : "Start dictation"))
         .accessibilityIdentifier("mic-button")
     }
 }

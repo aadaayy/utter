@@ -9,6 +9,7 @@ struct HomeView: View {
     @EnvironmentObject private var setup: SetupChecker
     @Environment(\.scenePhase) private var scenePhase
     @State private var tryText = ""
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         GeometryReader { geometry in
@@ -19,11 +20,13 @@ struct HomeView: View {
                             header
                             setupCard
                         }
+                        .frame(maxWidth: .infinity, alignment: .top)
                         VStack(spacing: 16) {
                             listenCard
                             tryCard
                             howCard
                         }
+                        .frame(maxWidth: .infinity, alignment: .top)
                     }
                     .padding(20)
                 } else {
@@ -54,7 +57,9 @@ struct HomeView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 14) {
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+                                                  : AnyLayout(HStackLayout(spacing: 14))
+        return layout {
             Image(systemName: "mic.fill")
                 .font(.system(size: 26, weight: .semibold))
                 .foregroundStyle(.white)
@@ -67,15 +72,18 @@ struct HomeView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-            Spacer(minLength: 0)
+            if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("home-header")
     }
 
     private var listenCard: some View {
         Card {
-            HStack(spacing: 12) {
+            let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+                                                      : AnyLayout(HStackLayout(spacing: 12))
+            layout {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(engine.isListening ? "Listening in \(engine.language.name)" : "Not listening")
                         .font(.headline)
@@ -84,7 +92,7 @@ struct HomeView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-                Spacer(minLength: 0)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
                 Button {
                     if engine.isListening {
                         Task { await engine.stop() }
@@ -155,7 +163,7 @@ struct HomeView: View {
                 Label("Open Settings", systemImage: "gear")
                     .frame(maxWidth: .infinity, minHeight: 44)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(ProminentWhen(on: !setup.allDone))
             .tint(Theme.blue)
             .accessibilityIdentifier("open-settings")
         }
@@ -256,6 +264,21 @@ private struct HowLine: View {
                 .frame(width: 18)
             Text(text).font(.subheadline)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// Filled while there's setup left to do; a quiet bordered button once it's all done.
+private struct ProminentWhen: PrimitiveButtonStyle {
+    let on: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        if on {
+            Button(role: configuration.role, action: configuration.trigger) { configuration.label }
+                .buttonStyle(.borderedProminent)
+        } else {
+            Button(role: configuration.role, action: configuration.trigger) { configuration.label }
+                .buttonStyle(.bordered)
         }
     }
 }

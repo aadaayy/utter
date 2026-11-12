@@ -15,7 +15,7 @@ struct ListeningView: View {
                 if wide {
                     HStack(spacing: 40) {
                         VStack(spacing: 20) {
-                            backHint
+                            if showsBackHint { backHint }
                             ring
                             statusText
                             buttons
@@ -27,7 +27,7 @@ struct ListeningView: View {
                     .padding(28)
                 } else {
                     VStack(spacing: 18) {
-                        backHint
+                        if showsBackHint { backHint }
                         Spacer(minLength: 0)
                         ring
                         statusText
@@ -43,6 +43,8 @@ struct ListeningView: View {
     }
 
     private var spanish: Bool { engine.language == .spanish }
+    /// "Go back to your app" only makes sense while Utter is (about to be) listening.
+    private var showsBackHint: Bool { engine.isListening }
 
     private var backHint: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -153,17 +155,30 @@ struct ListeningView: View {
 
     private var buttons: some View {
         HStack(spacing: 12) {
-            Button {
-                engine.setLanguage(engine.language.toggled)
-            } label: {
-                Text(engine.language == .english ? "EN → ES" : "ES → EN")
-                    .font(.headline)
-                    .frame(minWidth: 96, minHeight: 50)
-                    .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
-                    .foregroundStyle(.primary)
+            if engine.state == .failed {
+                Button {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                } label: {
+                    Text(spanish ? "Ajustes" : "Settings")
+                        .font(.headline)
+                        .frame(minWidth: 110, minHeight: 50)
+                        .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
+                        .foregroundStyle(.primary)
+                }
+                .accessibilityIdentifier("open-settings")
+            } else {
+                Button {
+                    engine.setLanguage(engine.language.toggled)
+                } label: {
+                    Text(engine.language == .english ? "EN → ES" : "ES → EN")
+                        .font(.headline)
+                        .frame(minWidth: 96, minHeight: 50)
+                        .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
+                        .foregroundStyle(.primary)
+                }
+                .accessibilityLabel(engine.language == .english ? "Switch to Spanish" : "Cambiar a inglés")
+                .accessibilityIdentifier("switch-language")
             }
-            .accessibilityLabel(engine.language == .english ? "Switch to Spanish" : "Cambiar a inglés")
-            .accessibilityIdentifier("switch-language")
 
             Button {
                 if engine.isListening {

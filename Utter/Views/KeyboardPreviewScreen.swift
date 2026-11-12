@@ -70,12 +70,12 @@ struct KeyboardPreviewScreen: View {
             model.phase = .listening
             model.countdown = 12
             model.level = 0.05
-            model.sampleText = "Hey, are we still on for golf tomorrow? Let's do the 8, no, the 9:30 tee time."
+            model.sampleText = "Hey, are we still on for golf tomorrow? Let's do the 9:30 tee time."
         case "typed":
             model.phase = .listening
             model.level = 0.3
             model.canUndoCleanup = true
-            model.sampleText = "Hey, are we still on for golf tomorrow? Let's do the 8, no, the 9:30 tee time."
+            model.sampleText = "Hey, are we still on for golf tomorrow? Let's do the 9:30 tee time."
         case "fullaccess":
             model.phase = .needsFullAccess
         case "spanish":
@@ -84,7 +84,7 @@ struct KeyboardPreviewScreen: View {
             model.partial = "y después vamos a cenar"
             model.level = 0.5
             model.canUndoCleanup = true
-            model.sampleText = "Mañana llego a las dos, no, a las tres."
+            model.sampleText = "Mañana llego a las tres."
         case "clipboard":
             model.phase = .clipboardOnly
         default:

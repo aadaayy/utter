@@ -8,12 +8,12 @@ enum Samples {
     static let englishSentences: [Segment] = [
         Segment(id: 1, raw: "um hey are we still on for golf tomorrow", clean: "Hey, are we still on for golf tomorrow?",
                 language: .english, createdAt: date),
-        Segment(id: 2, raw: "let's do the 8 no the 9 30 tee time", clean: "Let's do the 8, no, the 9:30 tee time.",
+        Segment(id: 2, raw: "let's do the 8 no the 9 30 tee time", clean: "Let's do the 9:30 tee time.",
                 language: .english, createdAt: date.addingTimeInterval(6)),
     ]
 
     static let spanishSentences: [Segment] = [
-        Segment(id: 3, raw: "eh mañana llego a las dos no a las tres", clean: "Mañana llego a las dos, no, a las tres.",
+        Segment(id: 3, raw: "eh mañana llego a las dos no a las tres", clean: "Mañana llego a las tres.",
                 language: .spanish, createdAt: date),
     ]
 
