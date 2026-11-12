@@ -16,6 +16,9 @@ struct KeyboardPreviewScreen: View {
                 note
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .padding(.top, geometry.safeAreaInsets.top)
+                    // The folded Duo keeps its clock and camera in a strip down one side.
+                    .padding(.leading, geometry.safeAreaInsets.leading)
+                    .padding(.trailing, geometry.safeAreaInsets.trailing)
                 KeyboardView(model: model) { GlobeIcon() }
                     .frame(height: height)
                 // iOS's own strip under the keyboard on phones without a home button.
