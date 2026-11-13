@@ -6,6 +6,11 @@ struct SettingsView: View {
     @State private var loaded = false
     @Environment(\.colorScheme) private var scheme
 
+    /// Frosted rows, the same glass as the home screen's cards.
+    private var glassRow: some View {
+        Rectangle().fill(.ultraThinMaterial).overlay(Color.white.opacity(0.05))
+    }
+
     var body: some View {
         Form {
             Section {
@@ -21,6 +26,7 @@ struct SettingsView: View {
             } footer: {
                 Text("The keyboard's EN/ES key switches too, even while you talk.")
             }
+            .listRowBackground(glassRow)
 
             Section {
                 Toggle("Clean up my words", isOn: $settings.cleanup)
@@ -33,6 +39,7 @@ struct SettingsView: View {
             } footer: {
                 Text("Removes um and uh, keeps your corrections (\"Tuesday, no, Wednesday\" becomes \"Wednesday\") and adds punctuation. Off types your words exactly as spoken. Raw words on the keyboard undoes it for one sentence.")
             }
+            .listRowBackground(glassRow)
 
             Section("Listening") {
                 LabeledContent("Stops after", value: "1 minute of quiet")
@@ -41,17 +48,21 @@ struct SettingsView: View {
                 LabeledContent("Say \"scratch that\"", value: "drops that sentence")
                 LabeledContent("In Spanish", value: "nueva línea, nuevo párrafo, borra eso")
             }
+            .listRowBackground(glassRow)
 
             Section("Privacy") {
                 Text("Your voice and your words never leave this iPhone. Utter has no account and no server, and the keyboard never goes online.")
                     .font(.subheadline)
             }
+            .listRowBackground(glassRow)
 
             Section {
                 LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
             }
+            .listRowBackground(glassRow)
         }
         .scrollContentBackground(.hidden)
+        .environment(\.defaultMinListRowHeight, 48)
         .background(Backdrop(intensity: 0.6))
         .toolbarBackground(.hidden, for: .navigationBar)
         .tint(Brand.aurora)
