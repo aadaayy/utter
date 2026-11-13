@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import Speech
+import SwiftUI
 import UIKit
 
 /// The listening side of Utter. It runs in the app (keyboards can't use the
@@ -14,7 +15,12 @@ final class DictationEngine: ObservableObject {
     @Published private(set) var state: ListenerStatus.State = .idle
     @Published private(set) var language: DictationLanguage
     @Published private(set) var partial = ""
-    @Published private(set) var level: Double = 0
+    @Published private(set) var level: Double = 0 {
+        didSet { levels = Array((levels + [level]).suffix(Self.levelHistory)) }
+    }
+    /// The last few seconds of mic level, for the listening screen's waveform.
+    @Published private(set) var levels: [Double] = Array(repeating: 0, count: DictationEngine.levelHistory)
+    static let levelHistory = 48
     @Published private(set) var countdown: Int?
     @Published private(set) var problem: String?
     /// This session's sentences, newest last, for the listening screen.
@@ -316,6 +322,7 @@ final class DictationEngine: ObservableObject {
         self.language = language
         self.partial = partial
         self.level = level
+        self.levels = Waveform.sampleLevels(count: Self.levelHistory, loudness: level)
         self.countdown = countdown
         self.problem = problem
         self.sentences = sentences

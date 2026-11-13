@@ -37,7 +37,7 @@ struct KeyboardPreviewScreen: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Divider()
-            Text("\(model.sampleText)\(Text("|").foregroundStyle(Theme.blue))")
+            Text("\(model.sampleText)\(Text("|").foregroundStyle(Brand.ember))")
                 .font(.body)
                 .accessibilityIdentifier("note-text")
         }
@@ -68,15 +68,18 @@ struct KeyboardPreviewScreen: View {
             model.phase = .listening
             model.partial = "and bring the new driver"
             model.level = 0.6
+            model.levels = Waveform.sampleLevels(count: KeyboardModel.levelHistory, loudness: 0.6)
             model.sampleText = "Hey, are we still on for golf tomorrow?"
         case "countdown":
             model.phase = .listening
             model.countdown = 12
             model.level = 0.05
+            model.levels = Waveform.sampleLevels(count: KeyboardModel.levelHistory, loudness: 0.05)
             model.sampleText = "Hey, are we still on for golf tomorrow? Let's do the 9:30 tee time."
         case "typed":
             model.phase = .listening
             model.level = 0.3
+            model.levels = Waveform.sampleLevels(count: KeyboardModel.levelHistory, loudness: 0.3)
             model.canUndoCleanup = true
             model.sampleText = "Hey, are we still on for golf tomorrow? Let's do the 9:30 tee time."
         case "fullaccess":
@@ -86,6 +89,7 @@ struct KeyboardPreviewScreen: View {
             model.phase = .listening
             model.partial = "y después vamos a cenar"
             model.level = 0.5
+            model.levels = Waveform.sampleLevels(count: KeyboardModel.levelHistory, loudness: 0.5)
             model.canUndoCleanup = true
             model.sampleText = "Mañana llego a las tres."
         case "clipboard":

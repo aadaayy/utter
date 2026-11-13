@@ -4,6 +4,7 @@ struct SettingsView: View {
     @EnvironmentObject private var engine: DictationEngine
     @State private var settings = UtterSettings()
     @State private var loaded = false
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         Form {
@@ -50,6 +51,9 @@ struct SettingsView: View {
                 LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Brand.paper(scheme).ignoresSafeArea())
+        .toolbarBackground(Brand.paper(scheme), for: .navigationBar)
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {

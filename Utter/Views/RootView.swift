@@ -6,6 +6,7 @@ import SwiftUI
 struct RootView: View {
     @Binding var route: UtterApp.Route
     @EnvironmentObject private var engine: DictationEngine
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         ZStack {
@@ -16,6 +17,7 @@ struct RootView: View {
                         SettingsView()
                     }
             }
+            .tint(Brand.ink(scheme))
             .accessibilityHidden(route == .listening)
 
             if route == .listening {

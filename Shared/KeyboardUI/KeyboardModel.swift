@@ -21,8 +21,13 @@ public final class KeyboardModel: ObservableObject {
     @Published public var language: DictationLanguage = .english
     /// The words being heard right now.
     @Published public var partial: String = ""
-    /// Mic level, 0 to 1.
-    @Published public var level: Double = 0
+    /// Mic level, 0 to 1. Each new level also goes on the end of `levels`.
+    @Published public var level: Double = 0 {
+        didSet { levels = Array((levels + [level]).suffix(Self.levelHistory)) }
+    }
+    /// The last few mic levels, oldest first, for the waveform.
+    @Published public var levels: [Double] = Array(repeating: 0, count: KeyboardModel.levelHistory)
+    public static let levelHistory = 32
     /// Seconds left before the mic lets go, near the end of a quiet minute.
     @Published public var countdown: Int?
     /// A short problem line from the app ("Microphone is off for Utter").
@@ -89,4 +94,15 @@ public final class KeyboardModel: ObservableObject {
     }
 
     public var isListening: Bool { phase == .listening || phase == .starting }
+
+    /// The words on the voice bar itself.
+    public var barLabel: String {
+        let spanish = language == .spanish
+        switch phase {
+        case .idle, .clipboardOnly: return spanish ? "Toca para hablar" : "Tap to talk"
+        case .starting: return spanish ? "Abriendo Utter…" : "Opening Utter…"
+        case .listening: return spanish ? "Parar" : "Stop"
+        case .needsFullAccess: return spanish ? "Falta acceso total" : "Full Access needed"
+        }
+    }
 }

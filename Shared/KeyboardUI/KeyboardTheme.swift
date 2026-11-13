@@ -26,8 +26,8 @@ enum KeyboardTheme {
         scheme == .dark ? Color.white.opacity(0.62) : Color.black.opacity(0.55)
     }
 
-    /// Utter's blue, for the mic when it's ready.
-    static let ready = Color(red: 0.18, green: 0.42, blue: 1.0)
-    /// Red while listening: tap to stop.
-    static let live = Color(red: 1.0, green: 0.27, blue: 0.23)
+    /// Quiet capsules on the keyboard (language switch, Raw words).
+    static func chip(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08)
+    }
 }

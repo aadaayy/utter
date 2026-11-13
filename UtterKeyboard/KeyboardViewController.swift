@@ -79,8 +79,14 @@ final class KeyboardViewController: UIInputViewController {
     // MARK: Actions
 
     private func wireActions() {
-        model.onMic = { [weak self] in self?.micTapped() }
-        model.onLanguage = { [weak self] in self?.switchLanguage() }
+        model.onMic = { [weak self] in
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            self?.micTapped()
+        }
+        model.onLanguage = { [weak self] in
+            UISelectionFeedbackGenerator().selectionChanged()
+            self?.switchLanguage()
+        }
         model.onSpace = { [weak self] in self?.type(" ") }
         model.onDelete = { [weak self] in self?.textDocumentProxy.deleteBackward() }
         model.onReturn = { [weak self] in self?.type("\n") }

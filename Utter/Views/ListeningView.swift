@@ -6,18 +6,28 @@ import SwiftUI
 struct ListeningView: View {
     let close: () -> Void
     @EnvironmentObject private var engine: DictationEngine
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         GeometryReader { geometry in
             let wide = geometry.size.width > 700
             ZStack {
-                Color(uiColor: .systemBackground).ignoresSafeArea()
+                Brand.paper(scheme).ignoresSafeArea()
+                // A warm glow behind the orb while the mic is on.
+                RadialGradient(colors: [Brand.ember.opacity(live ? (scheme == .dark ? 0.28 : 0.18) : 0), .clear],
+                               center: wide ? UnitPoint(x: 0.25, y: 0.45) : UnitPoint(x: 0.5, y: 0.38),
+                               startRadius: 0, endRadius: wide ? 420 : 340)
+                    .ignoresSafeArea()
+                    .animation(.easeInOut(duration: 0.4), value: live)
                 if wide {
                     HStack(spacing: 40) {
-                        VStack(spacing: 20) {
+                        VStack(spacing: 22) {
                             if showsBackHint { backHint }
+                            Spacer(minLength: 0)
                             ring
+                            wave
                             statusText
+                            Spacer(minLength: 0)
                             buttons
                         }
                         .frame(maxWidth: .infinity)
@@ -30,6 +40,7 @@ struct ListeningView: View {
                         if showsBackHint { backHint }
                         Spacer(minLength: 0)
                         ring
+                        wave
                         statusText
                         transcript
                             .frame(maxHeight: geometry.size.height * 0.3)
@@ -43,63 +54,77 @@ struct ListeningView: View {
     }
 
     private var spanish: Bool { engine.language == .spanish }
+    private var live: Bool { engine.state == .listening }
     /// "Go back to your app" only makes sense while Utter is (about to be) listening.
     private var showsBackHint: Bool { engine.isListening }
 
     private var backHint: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: 12) {
             Image(systemName: "arrow.up.left")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(Theme.blue)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Brand.onInk(scheme))
+                .frame(width: 30, height: 30)
+                .background(Brand.ink(scheme), in: Circle())
             VStack(alignment: .leading, spacing: 2) {
                 Text(spanish ? "Vuelve a tu app" : "Go back to your app")
                     .font(.headline)
+                    .foregroundStyle(Brand.ink(scheme))
                 Text(spanish ? "Toca ◀ arriba a la izquierda, o desliza a la derecha por el borde inferior. Utter sigue escuchando." :
                         "Tap ◀ at the top left, or swipe right along the bottom edge. Utter keeps listening.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Brand.muted(scheme))
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
         .padding(14)
-        .background(Theme.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(Brand.surface(scheme), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Brand.hairline(scheme), lineWidth: 0.5))
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("back-hint")
     }
 
     private var ring: some View {
-        let live = engine.state == .listening
-        return ZStack {
+        ZStack {
+            // Two soft halos that breathe with your voice.
             Circle()
-                .fill((live ? Theme.live : Theme.blue).opacity(0.15))
-                .frame(width: 150 + 60 * engine.level, height: 150 + 60 * engine.level)
-                .animation(.easeOut(duration: 0.15), value: engine.level)
+                .fill(Brand.ember.opacity(live ? 0.12 : 0))
+                .frame(width: 150 + 70 * engine.level, height: 150 + 70 * engine.level)
             Circle()
-                .fill(live ? Theme.live : (engine.state == .failed ? Color.gray : Theme.blue))
-                .frame(width: 120, height: 120)
+                .fill(Brand.ember.opacity(live ? 0.18 : 0))
+                .frame(width: 128 + 34 * engine.level, height: 128 + 34 * engine.level)
             if engine.state == .starting {
                 ProgressView().tint(.white).scaleEffect(1.4)
+                    .frame(width: 112, height: 112)
+                    .background(Brand.emberGradient, in: Circle())
             } else {
-                Image(systemName: engine.state == .failed ? "mic.slash.fill" : "mic.fill")
-                    .font(.system(size: 46, weight: .semibold))
-                    .foregroundStyle(.white)
+                EmberOrb(size: 112,
+                         symbol: engine.state == .failed ? "mic.slash.fill" : (live ? "waveform" : "mic.fill"),
+                         dimmed: !live && engine.state != .starting)
             }
         }
-        .frame(width: 210, height: 210)
+        .animation(.easeOut(duration: 0.15), value: engine.level)
+        .frame(width: 220, height: 220)
         .accessibilityHidden(true)
+    }
+
+    private var wave: some View {
+        Waveform(levels: engine.levels, color: Brand.ember, barWidth: 3, spacing: 4)
+            .frame(width: 220, height: 36)
+            .opacity(live ? 1 : 0)
     }
 
     private var statusText: some View {
         VStack(spacing: 6) {
             Text(title)
-                .font(.title2.bold())
+                .font(.system(.title, design: .serif).weight(.semibold))
+                .foregroundStyle(Brand.ink(scheme))
                 .multilineTextAlignment(.center)
                 .accessibilityIdentifier("listening-title")
             if let line = subtitle {
                 Text(line)
                     .font(.subheadline)
-                    .foregroundStyle(engine.problem != nil ? .orange : .secondary)
+                    .foregroundStyle(engine.problem != nil ? AnyShapeStyle(Color.orange) : AnyShapeStyle(Brand.muted(scheme)))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -131,22 +156,25 @@ struct ListeningView: View {
     private var transcript: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 10) {
                     ForEach(engine.sentences) { sentence in
                         Text(sentence.clean)
+                            .foregroundStyle(Brand.ink(scheme))
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     if !engine.partial.isEmpty {
                         Text(engine.partial)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Brand.muted(scheme))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .id("partial")
                     }
                 }
-                .font(.body)
-                .padding(14)
+                .font(.system(.title3, design: .serif))
+                .lineSpacing(3)
+                .padding(18)
             }
-            .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(Brand.surface(scheme), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Brand.hairline(scheme), lineWidth: 0.5))
             .opacity(engine.sentences.isEmpty && engine.partial.isEmpty ? 0 : 1)
             .onChange(of: engine.partial) { _, _ in proxy.scrollTo("partial", anchor: .bottom) }
             .accessibilityIdentifier("transcript")
@@ -159,23 +187,22 @@ struct ListeningView: View {
                 Button {
                     if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                 } label: {
-                    Text(spanish ? "Ajustes" : "Settings")
-                        .font(.headline)
-                        .frame(minWidth: 110, minHeight: 50)
-                        .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
-                        .foregroundStyle(.primary)
+                    Text(spanish ? "Ajustes" : "Settings").frame(minWidth: 96)
                 }
+                .buttonStyle(QuietButtonStyle())
                 .accessibilityIdentifier("open-settings")
             } else {
                 Button {
                     engine.setLanguage(engine.language.toggled)
                 } label: {
-                    Text(engine.language == .english ? "EN → ES" : "ES → EN")
-                        .font(.headline)
-                        .frame(minWidth: 96, minHeight: 50)
-                        .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
-                        .foregroundStyle(.primary)
+                    HStack(spacing: 2) {
+                        segment(.english)
+                        segment(.spanish)
+                    }
+                    .padding(3)
+                    .background(Brand.hairline(scheme), in: Capsule())
                 }
+                .buttonStyle(.plain)
                 .accessibilityLabel(engine.language == .english ? "Switch to Spanish" : "Cambiar a inglés")
                 .accessibilityIdentifier("switch-language")
             }
@@ -187,14 +214,23 @@ struct ListeningView: View {
                     close()
                 }
             } label: {
-                Text(engine.isListening ? (spanish ? "Parar" : "Stop") : (spanish ? "Cerrar" : "Done"))
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, minHeight: 50)
-                    .background(engine.isListening ? Theme.live : Theme.blue, in: Capsule())
-                    .foregroundStyle(.white)
+                Label(engine.isListening ? (spanish ? "Parar" : "Stop") : (spanish ? "Cerrar" : "Done"),
+                      systemImage: engine.isListening ? "stop.fill" : "checkmark")
+                    .frame(maxWidth: .infinity)
             }
+            .buttonStyle(InkButtonStyle())
             .accessibilityIdentifier("stop-button")
         }
         .frame(maxWidth: 420)
+    }
+
+    private func segment(_ language: DictationLanguage) -> some View {
+        let on = engine.language == language
+        return Text(language.shortLabel)
+            .font(.system(size: 14, weight: .bold, design: .rounded))
+            .tracking(0.6)
+            .foregroundStyle(on ? Brand.onInk(scheme) : Brand.muted(scheme))
+            .frame(width: 46, height: 40)
+            .background(on ? Brand.ink(scheme) : .clear, in: Capsule())
     }
 }

@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Utter's keyboard: no letter keys, one big mic, and the basics around it.
-/// - Phones and the folded Duo: the line of words on top, the mic in the
-///   middle, and globe, space, delete and return along the bottom.
-/// - Open Duo (wide): the basics on the left half and the mic on the right
-///   half, with nothing on the crease.
+/// Utter's keyboard: no letter keys. One wide voice bar does the talking, with
+/// globe, space, delete and return under it.
+/// - Phones and the folded Duo: language and status on top, the voice bar in
+///   the middle, the basics along the bottom.
+/// - Open Duo (wide): status and the basics on the left half, a big voice bar
+///   on the right half, nothing on the crease.
 public struct KeyboardView<Globe: View>: View {
     @ObservedObject var model: KeyboardModel
     let globe: Globe
@@ -25,16 +26,17 @@ public struct KeyboardView<Globe: View>: View {
     // MARK: Layouts
 
     private var compact: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 0) {
             topBar
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 10)
                 .padding(.top, 8)
-            Spacer(minLength: 0)
+            Spacer(minLength: 4)
             message
-                .padding(.horizontal, 16)
-            MicButton(model: model, size: 84)
-                .padding(.vertical, 4)
-            Spacer(minLength: 0)
+                .padding(.horizontal, 20)
+            Spacer(minLength: 6)
+            VoiceBar(model: model, height: 62)
+                .padding(.horizontal, 12)
+            Spacer(minLength: 10)
             bottomRow
                 .padding(.horizontal, 4)
                 .padding(.bottom, 4)
@@ -63,16 +65,16 @@ public struct KeyboardView<Globe: View>: View {
                     }
                 }
                 .frame(width: half)
-                // Right half: the mic, centred.
-                VStack(spacing: 10) {
+                // Right half: a big voice bar, centred under the right thumb.
+                VStack {
                     Spacer(minLength: 0)
-                    MicButton(model: model, size: 112)
+                    VoiceBar(model: model, height: 92)
+                        .frame(maxWidth: 400)
                     Spacer(minLength: 0)
                 }
                 .frame(width: half)
             }
             .padding(.vertical, 10)
-            .padding(.horizontal, 0)
         }
         .padding(.horizontal, 12)
     }
@@ -81,16 +83,7 @@ public struct KeyboardView<Globe: View>: View {
 
     private var topBar: some View {
         HStack(spacing: 8) {
-            Button(action: model.onLanguage) {
-                Text(model.language.shortLabel)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundStyle(KeyboardTheme.text(scheme))
-                    .frame(width: 44, height: 30)
-                    .background(KeyboardTheme.functionKey(scheme), in: Capsule())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(model.language == .english ? "Language: English. Switch to Spanish" : "Idioma: español. Cambiar a inglés")
-            .accessibilityIdentifier("language-chip")
+            LanguageSwitch(model: model)
 
             Spacer(minLength: 0)
 
@@ -101,38 +94,41 @@ public struct KeyboardView<Globe: View>: View {
                           systemImage: model.showingRaw ? "sparkles" : "arrow.uturn.backward")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(KeyboardTheme.text(scheme))
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, 12)
                         .frame(height: 30)
-                        .background(KeyboardTheme.functionKey(scheme), in: Capsule())
+                        .background(KeyboardTheme.chip(scheme), in: Capsule())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressableStyle())
                 .accessibilityLabel(model.showingRaw ? "Put the cleaned words back" : "Undo cleanup: type my words exactly as spoken")
                 .accessibilityIdentifier("undo-cleanup")
             }
 
             if model.phase == .clipboardOnly {
                 Button(action: model.onPasteClipboard) {
-                    Label("Paste", systemImage: "doc.on.clipboard")
+                    Label(model.language == .spanish ? "Pegar" : "Paste", systemImage: "doc.on.clipboard")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
+                        .foregroundStyle(Brand.onInk(scheme))
+                        .padding(.horizontal, 14)
                         .frame(height: 30)
-                        .background(KeyboardTheme.ready, in: Capsule())
+                        .background(Brand.ink(scheme), in: Capsule())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressableStyle())
                 .accessibilityIdentifier("paste-clipboard")
             }
         }
+        .frame(height: 32)
     }
 
     private var message: some View {
-        VStack(alignment: model.isWide ? .leading : .center, spacing: 2) {
+        let live = model.phase == .listening && !model.partial.isEmpty && model.countdown == nil
+        return VStack(alignment: model.isWide ? .leading : .center, spacing: 3) {
             Text(model.headline)
-                .font(.system(size: 17, weight: .semibold))
+                .font(live ? .system(size: 18, weight: .regular) : .system(size: 16, weight: .semibold))
                 .foregroundStyle(KeyboardTheme.text(scheme))
                 .lineLimit(2)
                 .truncationMode(.head)
                 .multilineTextAlignment(model.isWide ? .leading : .center)
+                .contentTransition(.opacity)
                 .accessibilityIdentifier("keyboard-headline")
             if let detail = model.detail {
                 Text(detail)
@@ -160,7 +156,7 @@ public struct KeyboardView<Globe: View>: View {
         globe
             .frame(width: model.isWide ? nil : 46, height: 44)
             .frame(maxWidth: model.isWide ? .infinity : nil)
-            .background(KeyboardTheme.functionKey(scheme), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(KeyboardTheme.functionKey(scheme), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
             .shadow(color: KeyboardTheme.keyShadow(scheme), radius: 0, x: 0, y: 1)
             .accessibilityIdentifier("globe-key")
     }
@@ -189,11 +185,45 @@ public struct KeyboardView<Globe: View>: View {
     }
 }
 
-/// The big round mic. Blue when ready, red with a ring that follows your
-/// voice while listening.
-struct MicButton: View {
+/// EN | ES, with the current language filled in. One tap switches, even
+/// while you're talking.
+struct LanguageSwitch: View {
     @ObservedObject var model: KeyboardModel
-    let size: CGFloat
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        Button(action: model.onLanguage) {
+            HStack(spacing: 2) {
+                segment(.english)
+                segment(.spanish)
+            }
+            .padding(2)
+            .background(KeyboardTheme.chip(scheme), in: Capsule())
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityLabel(model.language == .english ? "Language: English. Switch to Spanish" : "Idioma: español. Cambiar a inglés")
+        .accessibilityIdentifier("language-chip")
+    }
+
+    private func segment(_ language: DictationLanguage) -> some View {
+        let on = model.language == language
+        return Text(language.shortLabel)
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .tracking(0.6)
+            .foregroundStyle(on ? Brand.onInk(scheme) : KeyboardTheme.secondaryText(scheme))
+            .frame(width: 34, height: 26)
+            .background(on ? Brand.ink(scheme) : .clear, in: Capsule())
+    }
+}
+
+/// The voice bar: the one big control.
+/// - Ready: an ink pill with an ember mic and "Tap to talk".
+/// - Opening Utter: a spinner while the app starts the mic.
+/// - Listening: ember, with bars that follow your voice and a stop button.
+struct VoiceBar: View {
+    @ObservedObject var model: KeyboardModel
+    let height: CGFloat
+    @Environment(\.colorScheme) private var scheme
 
     private var live: Bool { model.phase == .listening }
     private var starting: Bool { model.phase == .starting }
@@ -202,34 +232,100 @@ struct MicButton: View {
     var body: some View {
         Button(action: model.onMic) {
             ZStack {
-                if live {
-                    Circle()
-                        .fill(KeyboardTheme.live.opacity(0.22))
-                        .frame(width: size * (1.12 + 0.26 * model.level), height: size * (1.12 + 0.26 * model.level))
-                        .animation(.easeOut(duration: 0.12), value: model.level)
-                }
-                Circle()
-                    .fill(live ? KeyboardTheme.live : (blocked ? Color.gray : KeyboardTheme.ready))
-                    .frame(width: size, height: size)
-                    .shadow(color: .black.opacity(0.18), radius: 6, y: 3)
-                if starting {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(.white)
-                        .scaleEffect(size / 50)
-                } else {
-                    Image(systemName: live ? "stop.fill" : (blocked ? "mic.slash.fill" : "mic.fill"))
-                        .font(.system(size: size * 0.36, weight: .semibold))
+                Capsule()
+                    .fill(fill)
+                    .shadow(color: shadow, radius: live ? 16 : 8, y: live ? 6 : 3)
+                content
+                    .padding(.horizontal, height * 0.14)
+            }
+            .frame(height: height)
+            .frame(maxWidth: .infinity)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(PressableStyle())
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: model.phase)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityIdentifier("mic-button")
+    }
+
+    private var fill: AnyShapeStyle {
+        if live { return AnyShapeStyle(Brand.emberGradient) }
+        if blocked { return AnyShapeStyle(KeyboardTheme.chip(scheme)) }
+        return AnyShapeStyle(Brand.ink(scheme))
+    }
+
+    private var shadow: Color {
+        if live { return Brand.ember.opacity(0.45) }
+        if blocked { return .clear }
+        return .black.opacity(scheme == .dark ? 0.0 : 0.22)
+    }
+
+    @ViewBuilder private var content: some View {
+        let orb = height - height * 0.24
+        if live {
+            HStack(spacing: 12) {
+                Waveform(levels: model.levels, color: .white.opacity(0.95),
+                         barWidth: height > 80 ? 4 : 3, spacing: height > 80 ? 4 : 3)
+                    .frame(height: height * 0.5)
+                if let countdown = model.countdown {
+                    Text("\(countdown)s")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
                         .foregroundStyle(.white)
                 }
+                ZStack {
+                    Circle().fill(.white)
+                    RoundedRectangle(cornerRadius: orb * 0.08, style: .continuous)
+                        .fill(Brand.emberBottom)
+                        .frame(width: orb * 0.3, height: orb * 0.3)
+                }
+                .frame(width: orb, height: orb)
             }
-            .frame(width: size * 1.4, height: size * 1.4)
-            .contentShape(Circle())
+        } else {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle().fill(blocked ? AnyShapeStyle(KeyboardTheme.secondaryText(scheme).opacity(0.35))
+                                          : AnyShapeStyle(Brand.emberGradient))
+                    if starting {
+                        ProgressView().progressViewStyle(.circular).tint(.white)
+                    } else {
+                        Image(systemName: blocked ? "mic.slash.fill" : "mic.fill")
+                            .font(.system(size: orb * 0.42, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .frame(width: orb, height: orb)
+                Text(model.barLabel)
+                    .font(.system(size: height > 80 ? 20 : 17, weight: .semibold))
+                    .foregroundStyle(blocked ? KeyboardTheme.secondaryText(scheme) : Brand.onInk(scheme))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 0)
+                if !blocked {
+                    Text(model.language.shortLabel)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .tracking(0.8)
+                        .foregroundStyle(Brand.onInk(scheme).opacity(0.5))
+                        .padding(.trailing, 6)
+                }
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(live ? (model.language == .spanish ? "Parar" : "Stop listening")
-                            : (model.language == .spanish ? "Dictar" : "Start dictation"))
-        .accessibilityIdentifier("mic-button")
+    }
+
+    private var accessibilityText: String {
+        let spanish = model.language == .spanish
+        if live { return spanish ? "Parar" : "Stop listening" }
+        return spanish ? "Dictar" : "Start dictation"
+    }
+}
+
+/// Presses shrink a touch, like the system's own controls.
+struct PressableStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .opacity(configuration.isPressed ? 0.9 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
