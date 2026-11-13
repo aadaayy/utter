@@ -19,7 +19,7 @@ struct ListeningView: View {
                         VStack(spacing: 22) {
                             if showsBackHint { backHint }
                             Spacer(minLength: 0)
-                            ring
+                            ring(compact: false)
                             wave
                             statusText
                             Spacer(minLength: 0)
@@ -31,14 +31,18 @@ struct ListeningView: View {
                     }
                     .padding(28)
                 } else {
-                    VStack(spacing: 18) {
+                    // Short screens (the folded Duo) get a smaller sphere so the
+                    // words still have room to show.
+                    let compact = geometry.size.height < 760
+                    VStack(spacing: compact ? 12 : 18) {
                         if showsBackHint { backHint }
                         Spacer(minLength: 0)
-                        ring
+                        ring(compact: compact)
                         wave
                         statusText
                         transcript
-                            .frame(maxHeight: geometry.size.height * 0.3)
+                            .frame(minHeight: compact ? 96 : nil, maxHeight: geometry.size.height * 0.3)
+                            .layoutPriority(1)
                         Spacer(minLength: 0)
                         buttons
                     }
@@ -79,9 +83,9 @@ struct ListeningView: View {
         .accessibilityIdentifier("back-hint")
     }
 
-    private var ring: some View {
+    private func ring(compact: Bool) -> some View {
         ZStack {
-            AuroraSphere(size: 150, level: live ? engine.level : 0, active: engine.state != .failed && engine.state != .idle,
+            AuroraSphere(size: compact ? 112 : 150, level: live ? engine.level : 0, active: engine.state != .failed && engine.state != .idle,
                          animated: !LaunchOptions.current.still)
                 .scaleEffect(1 + 0.08 * (live ? engine.level : 0))
             if engine.state == .starting {
@@ -93,7 +97,7 @@ struct ListeningView: View {
             }
         }
         .animation(.easeOut(duration: 0.15), value: engine.level)
-        .frame(width: 210, height: 200)
+        .frame(width: compact ? 160 : 210, height: compact ? 150 : 200)
         .accessibilityHidden(true)
     }
 
