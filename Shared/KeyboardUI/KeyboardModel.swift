@@ -59,9 +59,9 @@ public final class KeyboardModel: ObservableObject {
         let spanish = language == .spanish
         switch phase {
         case .idle:
-            return spanish ? "Toca el micrófono y habla" : "Tap the mic and talk"
+            return spanish ? "Habla y se escribe." : "Talk, and it types."
         case .starting:
-            return spanish ? "Abriendo Utter…" : "Opening Utter…"
+            return spanish ? "Un momento" : "One moment"
         case .listening:
             if let countdown { return spanish ? "Se detiene en \(countdown) s" : "Stopping in \(countdown) s" }
             if !partial.isEmpty { return partial }

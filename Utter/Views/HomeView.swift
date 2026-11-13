@@ -33,8 +33,15 @@ struct HomeView: View {
                     .padding(24)
                 } else {
                     VStack(spacing: 18) {
-                        header
-                        listenCard
+                        // At the biggest text sizes the Start button comes first,
+                        // so it's on screen without scrolling.
+                        if typeSize.isAccessibilitySize {
+                            listenCard
+                            header
+                        } else {
+                            header
+                            listenCard
+                        }
                         setupCard
                         tryCard
                         howCard
@@ -96,7 +103,9 @@ struct HomeView: View {
             let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
                                                       : AnyLayout(HStackLayout(spacing: 14))
             layout {
-                EmberOrb(size: 54, symbol: engine.isListening ? "waveform" : "mic.fill")
+                if !typeSize.isAccessibilitySize {
+                    EmberOrb(size: 54, symbol: engine.isListening ? "waveform" : "mic.fill")
+                }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(engine.isListening ? "Listening in \(engine.language.name)" : "Ready when you are")
                         .font(.system(.title3, design: .serif).weight(.semibold))
