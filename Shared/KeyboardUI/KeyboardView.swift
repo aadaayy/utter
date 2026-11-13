@@ -216,10 +216,11 @@ struct LanguageSwitch: View {
     }
 }
 
-/// The voice bar: the one big control.
-/// - Ready: an ink pill with an ember mic and "Tap to talk".
-/// - Opening Utter: a spinner while the app starts the mic.
-/// - Listening: ember, with bars that follow your voice and a stop button.
+/// The voice bar: the one big control. Dark glass with an aurora edge on
+/// any keyboard, light or dark.
+/// - Ready: a small aurora sphere with a mic, and "Tap to talk".
+/// - Opening Utter: a spinner on the sphere while the app starts the mic.
+/// - Listening: it glows, with aurora bars that follow your voice and a stop button.
 struct VoiceBar: View {
     @ObservedObject var model: KeyboardModel
     let height: CGFloat
@@ -233,10 +234,23 @@ struct VoiceBar: View {
         Button(action: model.onMic) {
             ZStack {
                 Capsule()
-                    .fill(fill)
-                    .shadow(color: shadow, radius: live ? 16 : 8, y: live ? 6 : 3)
+                    .fill(blocked ? AnyShapeStyle(KeyboardTheme.chip(scheme)) : AnyShapeStyle(Brand.night))
+                    .overlay(
+                        Capsule().strokeBorder(blocked ? AnyShapeStyle(Color.clear) : AnyShapeStyle(Brand.auroraGradient),
+                                               lineWidth: live ? 1.6 : 1.1)
+                            .opacity(live ? 1 : 0.85)
+                    )
+                    .overlay(
+                        // A sheen along the top, like glass.
+                        Capsule()
+                            .fill(LinearGradient(colors: [.white.opacity(blocked ? 0 : 0.10), .clear],
+                                                 startPoint: .top, endPoint: .center))
+                            .padding(1.5)
+                    )
+                    .shadow(color: blocked ? .clear : Brand.aurora.opacity(live ? 0.6 : (scheme == .dark ? 0.35 : 0.28)),
+                            radius: live ? 18 : 10, y: live ? 4 : 3)
                 content
-                    .padding(.horizontal, height * 0.14)
+                    .padding(.horizontal, height * 0.12)
             }
             .frame(height: height)
             .frame(maxWidth: .infinity)
@@ -248,56 +262,46 @@ struct VoiceBar: View {
         .accessibilityIdentifier("mic-button")
     }
 
-    private var fill: AnyShapeStyle {
-        if live { return AnyShapeStyle(Brand.emberGradient) }
-        if blocked { return AnyShapeStyle(KeyboardTheme.chip(scheme)) }
-        return AnyShapeStyle(Brand.ink(scheme))
-    }
-
-    private var shadow: Color {
-        if live { return Brand.ember.opacity(0.45) }
-        if blocked { return .clear }
-        return .black.opacity(scheme == .dark ? 0.0 : 0.22)
-    }
-
     @ViewBuilder private var content: some View {
-        let orb = height - height * 0.24
+        let orb = height - height * 0.26
         if live {
             HStack(spacing: 12) {
-                Waveform(levels: model.levels, color: .white.opacity(0.95),
+                Waveform(levels: model.levels, style: AnyShapeStyle(Brand.auroraGradient),
                          barWidth: height > 80 ? 4 : 3, spacing: height > 80 ? 4 : 3)
                     .frame(height: height * 0.5)
+                    .padding(.leading, 6)
                 if let countdown = model.countdown {
                     Text("\(countdown)s")
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .monospacedDigit()
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.white.opacity(0.9))
                 }
                 ZStack {
                     Circle().fill(.white)
                     RoundedRectangle(cornerRadius: orb * 0.08, style: .continuous)
-                        .fill(Brand.emberBottom)
-                        .frame(width: orb * 0.3, height: orb * 0.3)
+                        .fill(Brand.auroraGradient)
+                        .frame(width: orb * 0.32, height: orb * 0.32)
                 }
                 .frame(width: orb, height: orb)
+                .shadow(color: .white.opacity(0.3), radius: 6)
             }
         } else {
             HStack(spacing: 12) {
                 ZStack {
-                    Circle().fill(blocked ? AnyShapeStyle(KeyboardTheme.secondaryText(scheme).opacity(0.35))
-                                          : AnyShapeStyle(Brand.emberGradient))
+                    AuroraSphere(size: orb, level: 0.2, active: !blocked, animated: false)
                     if starting {
                         ProgressView().progressViewStyle(.circular).tint(.white)
                     } else {
                         Image(systemName: blocked ? "mic.slash.fill" : "mic.fill")
-                            .font(.system(size: orb * 0.42, weight: .semibold))
+                            .font(.system(size: orb * 0.38, weight: .semibold))
                             .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
                     }
                 }
                 .frame(width: orb, height: orb)
                 Text(model.barLabel)
                     .font(.system(size: height > 80 ? 20 : 17, weight: .semibold))
-                    .foregroundStyle(blocked ? KeyboardTheme.secondaryText(scheme) : Brand.onInk(scheme))
+                    .foregroundStyle(blocked ? KeyboardTheme.secondaryText(scheme) : .white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 Spacer(minLength: 0)
@@ -305,7 +309,7 @@ struct VoiceBar: View {
                     Text(model.language.shortLabel)
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .tracking(0.8)
-                        .foregroundStyle(Brand.onInk(scheme).opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.45))
                         .padding(.trailing, 6)
                 }
             }

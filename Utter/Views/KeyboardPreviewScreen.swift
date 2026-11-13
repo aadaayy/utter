@@ -37,7 +37,7 @@ struct KeyboardPreviewScreen: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Divider()
-            Text("\(model.sampleText)\(Text("|").foregroundStyle(Brand.ember))")
+            Text("\(model.sampleText)\(Text("|").foregroundStyle(Brand.aurora))")
                 .font(.body)
                 .accessibilityIdentifier("note-text")
         }

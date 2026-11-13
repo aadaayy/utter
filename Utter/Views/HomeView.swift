@@ -51,18 +51,20 @@ struct HomeView: View {
                 }
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(Brand.paper(scheme).ignoresSafeArea())
+            .background(Backdrop())
         }
         .navigationTitle("Utter")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Brand.paper(scheme), for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 HStack(spacing: 6) {
-                    Circle().fill(engine.isListening ? AnyShapeStyle(Brand.emberGradient) : AnyShapeStyle(Brand.ink(scheme)))
-                        .frame(width: 8, height: 8)
+                    Circle().fill(Brand.auroraGradient)
+                        .frame(width: 9, height: 9)
+                        .shadow(color: Brand.aurora.opacity(0.8), radius: 4)
                     Text("Utter")
-                        .font(.system(.title3, design: .serif).weight(.semibold))
+                        .font(.system(.title3, design: .default).weight(.semibold))
+                        .tracking(0.4)
                         .foregroundStyle(Brand.ink(scheme))
                 }
                 .accessibilityElement(children: .combine)
@@ -82,9 +84,10 @@ struct HomeView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Talk, and it types.")
-                .font(.system(.largeTitle, design: .serif).weight(.semibold))
-                .foregroundStyle(Brand.ink(scheme))
+            Text("\(Text("Talk,\n").foregroundStyle(Brand.ink(scheme)))\(Text("and it types.").foregroundStyle(Brand.auroraGradient))")
+                .font(.system(size: typeSize.isAccessibilitySize ? 44 : 40, weight: .semibold))
+                .tracking(-0.8)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility2)
                 .fixedSize(horizontal: false, vertical: true)
             Text("English and Spanish, cleaned up as you go. Everything stays on this iPhone.")
                 .font(.body)
@@ -104,11 +107,11 @@ struct HomeView: View {
                                                       : AnyLayout(HStackLayout(spacing: 14))
             layout {
                 if !typeSize.isAccessibilitySize {
-                    EmberOrb(size: 54, symbol: engine.isListening ? "waveform" : "mic.fill")
+                    AuroraOrb(size: 54, symbol: engine.isListening ? "waveform" : "mic.fill")
                 }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(engine.isListening ? "Listening in \(engine.language.name)" : "Ready when you are")
-                        .font(.system(.title3, design: .serif).weight(.semibold))
+                        .font(.system(.title3, design: .default).weight(.semibold))
                         .foregroundStyle(Brand.ink(scheme))
                     Text(engine.isListening ? "Stops after 1 minute of quiet." :
                             "Start from the Utter keyboard, or right here.")
@@ -119,7 +122,7 @@ struct HomeView: View {
                 if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
             }
             if engine.isListening {
-                Waveform(levels: engine.levels, color: Brand.ember, barWidth: 3, spacing: 3)
+                Waveform(levels: engine.levels, style: AnyShapeStyle(Brand.auroraGradient), barWidth: 3, spacing: 3)
                     .frame(height: 28)
             }
             Button {
@@ -134,7 +137,7 @@ struct HomeView: View {
                       systemImage: engine.isListening ? "stop.fill" : "mic.fill")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(InkButtonStyle(fill: engine.isListening ? AnyShapeStyle(Brand.emberGradient) : nil))
+            .buttonStyle(InkButtonStyle(fill: engine.isListening ? AnyShapeStyle(Brand.auroraGradient) : nil))
             .accessibilityIdentifier("listen-button")
             if let problem = engine.problem, !engine.isListening {
                 Label(problem, systemImage: "exclamationmark.triangle.fill")
@@ -161,7 +164,7 @@ struct HomeView: View {
                 }
                 HStack(spacing: 8) {
                     Text(setup.allDone ? "All set" : "Set up the keyboard")
-                        .font(.system(.title3, design: .serif).weight(.semibold))
+                        .font(.system(.title3, design: .default).weight(.semibold))
                         .foregroundStyle(Brand.ink(scheme))
                     if setup.allDone {
                         Image(systemName: "checkmark.seal.fill").foregroundStyle(Theme.done)
@@ -238,11 +241,13 @@ struct HomeView: View {
                 TextEditor(text: $tryText)
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 96)
-                    .tint(Brand.ember)
+                    .tint(Brand.aurora)
+                    .foregroundStyle(Brand.ink(scheme))
                     .accessibilityIdentifier("try-field")
             }
             .padding(10)
-            .background(Brand.paper(scheme), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Brand.hairline(scheme), lineWidth: 1))
         }
     }
 
@@ -269,7 +274,7 @@ private struct ProgressBar: View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
                 Capsule().fill(Brand.hairline(scheme))
-                Capsule().fill(value >= 1 ? AnyShapeStyle(Theme.done) : AnyShapeStyle(Brand.ink(scheme)))
+                Capsule().fill(value >= 1 ? AnyShapeStyle(Theme.done) : AnyShapeStyle(Brand.auroraGradient))
                     .frame(width: max(6, geometry.size.width * value))
             }
         }
@@ -301,7 +306,7 @@ private struct StepRow<Accessory: View>: View {
                 if done {
                     Image(systemName: "checkmark").font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
                 } else {
-                    Text("\(number)").font(.system(size: 14, weight: .semibold, design: .serif)).foregroundStyle(Brand.ink(scheme))
+                    Text("\(number)").font(.system(size: 14, weight: .semibold, design: .default)).foregroundStyle(Brand.ink(scheme))
                 }
             }
             .frame(width: 28, height: 28)
@@ -327,7 +332,7 @@ private struct HowLine: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text("\(number)")
-                .font(.system(.callout, design: .serif).weight(.semibold))
+                .font(.system(.callout, design: .default).weight(.semibold))
                 .foregroundStyle(Brand.muted(scheme))
                 .frame(width: 18)
             Text(text).font(.subheadline)

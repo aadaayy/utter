@@ -12,13 +12,8 @@ struct ListeningView: View {
         GeometryReader { geometry in
             let wide = geometry.size.width > 700
             ZStack {
-                Brand.paper(scheme).ignoresSafeArea()
-                // A warm glow behind the orb while the mic is on.
-                RadialGradient(colors: [Brand.ember.opacity(live ? (scheme == .dark ? 0.28 : 0.18) : 0), .clear],
-                               center: wide ? UnitPoint(x: 0.25, y: 0.45) : UnitPoint(x: 0.5, y: 0.38),
-                               startRadius: 0, endRadius: wide ? 420 : 340)
-                    .ignoresSafeArea()
-                    .animation(.easeInOut(duration: 0.4), value: live)
+                Backdrop(intensity: live ? 1.3 : 0.7)
+                    .animation(.easeInOut(duration: 0.5), value: live)
                 if wide {
                     HStack(spacing: 40) {
                         VStack(spacing: 22) {
@@ -62,9 +57,9 @@ struct ListeningView: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "arrow.up.left")
                 .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(Brand.onInk(scheme))
-                .frame(width: 30, height: 30)
-                .background(Brand.ink(scheme), in: Circle())
+                .foregroundStyle(.white)
+                .frame(width: 32, height: 32)
+                .background(Brand.auroraGradient, in: Circle())
             VStack(alignment: .leading, spacing: 2) {
                 Text(spanish ? "Vuelve a tu app" : "Go back to your app")
                     .font(.headline)
@@ -78,46 +73,40 @@ struct ListeningView: View {
             Spacer(minLength: 0)
         }
         .padding(14)
-        .background(Brand.surface(scheme), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Brand.hairline(scheme), lineWidth: 0.5))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Brand.glassEdge(scheme), lineWidth: 1))
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("back-hint")
     }
 
     private var ring: some View {
         ZStack {
-            // Two soft halos that breathe with your voice.
-            Circle()
-                .fill(Brand.ember.opacity(live ? 0.12 : 0))
-                .frame(width: 150 + 70 * engine.level, height: 150 + 70 * engine.level)
-            Circle()
-                .fill(Brand.ember.opacity(live ? 0.18 : 0))
-                .frame(width: 128 + 34 * engine.level, height: 128 + 34 * engine.level)
+            AuroraSphere(size: 150, level: live ? engine.level : 0, active: engine.state != .failed && engine.state != .idle,
+                         animated: !LaunchOptions.current.still)
+                .scaleEffect(1 + 0.08 * (live ? engine.level : 0))
             if engine.state == .starting {
-                ProgressView().tint(.white).scaleEffect(1.4)
-                    .frame(width: 112, height: 112)
-                    .background(Brand.emberGradient, in: Circle())
-            } else {
-                EmberOrb(size: 112,
-                         symbol: engine.state == .failed ? "mic.slash.fill" : (live ? "waveform" : "mic.fill"),
-                         dimmed: !live && engine.state != .starting)
+                ProgressView().tint(.white).scaleEffect(1.5)
+            } else if engine.state == .failed {
+                Image(systemName: "mic.slash.fill")
+                    .font(.system(size: 44, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.85))
             }
         }
         .animation(.easeOut(duration: 0.15), value: engine.level)
-        .frame(width: 220, height: 220)
+        .frame(width: 210, height: 200)
         .accessibilityHidden(true)
     }
 
     private var wave: some View {
-        Waveform(levels: engine.levels, color: Brand.ember, barWidth: 3, spacing: 4)
-            .frame(width: 220, height: 36)
+        Waveform(levels: engine.levels, style: AnyShapeStyle(Brand.auroraGradient), barWidth: 3, spacing: 4)
+            .frame(width: 230, height: 36)
             .opacity(live ? 1 : 0)
     }
 
     private var statusText: some View {
         VStack(spacing: 6) {
             Text(title)
-                .font(.system(.title, design: .serif).weight(.semibold))
+                .font(.system(.title, design: .default).weight(.semibold))
                 .foregroundStyle(Brand.ink(scheme))
                 .multilineTextAlignment(.center)
                 .accessibilityIdentifier("listening-title")
@@ -169,12 +158,12 @@ struct ListeningView: View {
                             .id("partial")
                     }
                 }
-                .font(.system(.title3, design: .serif))
+                .font(.system(.title3, design: .default).weight(.regular))
                 .lineSpacing(3)
                 .padding(18)
             }
-            .background(Brand.surface(scheme), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Brand.hairline(scheme), lineWidth: 0.5))
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(Brand.glassEdge(scheme), lineWidth: 1))
             .opacity(engine.sentences.isEmpty && engine.partial.isEmpty ? 0 : 1)
             .onChange(of: engine.partial) { _, _ in proxy.scrollTo("partial", anchor: .bottom) }
             .accessibilityIdentifier("transcript")

@@ -52,8 +52,9 @@ struct SettingsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Brand.paper(scheme).ignoresSafeArea())
-        .toolbarBackground(Brand.paper(scheme), for: .navigationBar)
+        .background(Backdrop(intensity: 0.6))
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .tint(Brand.aurora)
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {

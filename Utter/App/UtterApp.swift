@@ -37,7 +37,11 @@ struct UtterApp: App {
                 }
             }
             .modifier(TextSizeOverride(size: LaunchOptions.current.textSize))
-            .preferredColorScheme(LaunchOptions.current.testing ? (LaunchOptions.current.dark ? .dark : .light) : nil)
+            // The app is always midnight; the keyboard preview follows the
+            // checks' light or dark setting, like the real keyboard follows the phone.
+            .preferredColorScheme(route == .keyboard
+                                  ? (LaunchOptions.current.testing ? (LaunchOptions.current.dark ? .dark : .light) : nil)
+                                  : .dark)
             .environmentObject(engine)
             .environmentObject(setup)
             .onOpenURL { url in handle(url) }
